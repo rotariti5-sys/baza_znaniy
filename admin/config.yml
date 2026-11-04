@@ -1,0 +1,111 @@
+# Админка базы знаний MusicDream (Sveltia CMS).
+# Каждое сохранение = коммит в репозиторий; данные лежат в content/.
+
+backend:
+  name: github
+  repo: rotariti5-sys/baza_znaniy
+  branch: main
+  commit_messages:
+    create: "Создано: {{collection}} «{{slug}}»"
+    update: "Изменено: {{collection}} «{{slug}}»"
+    delete: "Удалено: {{collection}} «{{slug}}»"
+
+app_title: MusicDream — база знаний
+logo:
+  src: logo.png
+
+# Картинок в базе нет; папка нужна только потому, что CMS требует её указать.
+media_folder: content/media
+public_folder: /media
+
+# Имя файла статьи = заголовок, кириллица сохраняется (Правила_игры.md).
+slug:
+  encoding: unicode
+  clean_accents: false
+  sanitize_replacement: "_"
+
+collections:
+  - name: pages
+    label: Статьи
+    label_singular: статью
+    description: >-
+      Статьи базы знаний. Ссылка на другую статью пишется как [[Название статьи]]
+      или [[Название статьи|текст ссылки]].
+    folder: content/pages
+    extension: md
+    format: frontmatter
+    create: true
+    delete: true
+    slug: "{{title}}"
+    identifier_field: title
+    summary: "{{title}} — {{section}}"
+    sortable_fields: [title, section, order]
+    view_groups:
+      - label: Раздел
+        field: section
+    view_filters:
+      - label: Скрытые
+        field: hidden
+        pattern: true
+    fields:
+      - label: Название
+        name: title
+        widget: string
+      - label: Раздел
+        name: section
+        widget: relation
+        collection: settings
+        file: sections
+        search_fields: ["sections.*.name"]
+        value_field: "sections.*.name"
+        display_fields: ["sections.*.name"]
+        hint: Раздел на заглавной странице. Список разделов — «Настройки → Разделы».
+      - label: Порядок в разделе
+        name: order
+        widget: number
+        value_type: int
+        required: false
+        hint: Меньше — выше. Пусто — по алфавиту после пронумерованных.
+      - label: Скрыть (черновик)
+        name: hidden
+        widget: boolean
+        default: false
+        required: false
+      - label: Текст
+        name: body
+        widget: markdown
+        editor_components: []
+        buttons: [bold, italic, link, heading-two, heading-three, quote, bulleted-list, numbered-list, code]
+        hint: "Ссылка на статью базы: [[Название]] или [[Название|текст]]."
+
+  - name: settings
+    label: Настройки
+    editor:
+      preview: false
+    files:
+      - name: sections
+        label: Разделы
+        file: content/sections.yml
+        fields:
+          - label: Разделы заглавной страницы
+            name: sections
+            widget: list
+            label_singular: раздел
+            summary: "{{fields.name}}"
+            hint: Порядок в списке = порядок на заглавной. Переименовали раздел — поменяйте его и в статьях.
+            fields:
+              - label: Название раздела
+                name: name
+                widget: string
+      - name: home
+        label: Заглавная страница
+        file: content/home.md
+        fields:
+          - label: Заголовок
+            name: title
+            widget: string
+          - label: Вступление
+            name: body
+            widget: markdown
+            editor_components: []
+            buttons: [bold, italic, link, heading-two, heading-three, quote, bulleted-list, numbered-list]
