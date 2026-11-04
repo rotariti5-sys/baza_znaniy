@@ -4,11 +4,207 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
-  <title>MusicDream — админка базы знаний</title>
-  <link rel="icon" type="image/png" href="favicon.png">
+  <title>MusicDream — база знаний</title>
+  <link rel="icon" type="image/png" href="assets/img/favicon.png">
+  <link rel="stylesheet" href="app.css">
 </head>
 <body>
-  <!-- Sveltia CMS: config.yml рядом с этим файлом -->
-  <script src="https://unpkg.com/@sveltia/cms@0.248.1/dist/sveltia-cms.js"></script>
+
+<!-- ---------- вход ---------- -->
+<section class="login" id="login" hidden>
+  <div class="login__card">
+    <img class="login__logo" src="assets/img/logo-white.png" alt="MusicDream">
+    <div class="login__title" id="login-title">Вход в базу знаний</div>
+
+    <form id="login-form" class="form">
+      <label class="gfield">
+        <span class="gfield__label">Логин</span>
+        <input name="login" autocomplete="username" required>
+      </label>
+      <label class="gfield">
+        <span class="gfield__label">Пароль</span>
+        <span class="gfield__wrap">
+          <input name="password" type="password" autocomplete="current-password" required>
+          <button type="button" class="gfield__eye" data-eye aria-label="Показать пароль"><svg viewBox="0 0 24 24"><path d="M12 5c5 0 9 4.6 9 7s-4 7-9 7-9-4.6-9-7 4-7 9-7Zm0 2c-3.6 0-6.6 3.2-6.9 5 .3 1.8 3.3 5 6.9 5s6.6-3.2 6.9-5c-.3-1.8-3.3-5-6.9-5Zm0 1.8a3.2 3.2 0 1 1 0 6.4 3.2 3.2 0 0 1 0-6.4Z"/></svg></button>
+        </span>
+      </label>
+      <button class="btn btn--primary btn--play" type="submit"><span class="btn__content">Войти</span></button>
+    </form>
+
+    <!-- Показывается, только пока в базе нет ни одного админа -->
+    <form id="setup-form" class="form" hidden>
+      <p class="hint">Админа ещё нет. Этот аккаунт станет главным: он раздаёт доступ редакторам.</p>
+      <label class="gfield"><span class="gfield__label">Логин</span><input name="login" autocomplete="username" required></label>
+      <label class="gfield"><span class="gfield__label">Имя в базе</span><input name="name" placeholder="как подписывать правки"></label>
+      <label class="gfield">
+        <span class="gfield__label">Пароль (от 8 символов)</span>
+        <span class="gfield__wrap">
+          <input name="password" type="password" minlength="8" autocomplete="new-password" required>
+          <button type="button" class="gfield__eye" data-eye aria-label="Показать пароль"><svg viewBox="0 0 24 24"><path d="M12 5c5 0 9 4.6 9 7s-4 7-9 7-9-4.6-9-7 4-7 9-7Zm0 2c-3.6 0-6.6 3.2-6.9 5 .3 1.8 3.3 5 6.9 5s6.6-3.2 6.9-5c-.3-1.8-3.3-5-6.9-5Zm0 1.8a3.2 3.2 0 1 1 0 6.4 3.2 3.2 0 0 1 0-6.4Z"/></svg></button>
+        </span>
+      </label>
+      <button class="btn btn--primary btn--play" type="submit"><span class="btn__content">Создать аккаунт админа</span></button>
+    </form>
+
+    <p class="msg" id="login-msg"></p>
+  </div>
+</section>
+
+<!-- ---------- приложение ---------- -->
+<div class="app" id="app" hidden>
+  <aside class="sidenav">
+    <div class="sidenav__logo"><img src="assets/img/logo-white.png" alt="MusicDream"></div>
+    <div class="sidenav__badge">База знаний</div>
+    <nav class="sidenav__nav" id="nav">
+      <button class="navitem" data-page="articles">
+        <span class="navitem__icon"><svg viewBox="0 0 24 24"><path d="M5 4h11a2 2 0 0 1 2 2v12a2 2 0 0 0 2 2H6a2 2 0 0 1-2-2V5a1 1 0 0 1 1-1Zm2 3.5v2h7v-2H7Zm0 4v1.6h7v-1.6H7Zm0 3.6v1.6h4.6v-1.6H7Z"/></svg></span>
+        <span class="navitem__label">Статьи</span>
+      </button>
+      <button class="navitem" data-page="sections" data-admin>
+        <span class="navitem__icon"><svg viewBox="0 0 24 24"><path d="M4 5h7v6H4V5Zm9 0h7v6h-7V5ZM4 13h7v6H4v-6Zm9 0h7v6h-7v-6Z"/></svg></span>
+        <span class="navitem__label">Разделы</span>
+      </button>
+      <button class="navitem" data-page="home" data-admin>
+        <span class="navitem__icon"><svg viewBox="0 0 24 24"><path d="M12 3.2 3.6 9.6c-.4.3-.6.7-.6 1.2v8.4c0 .6.5 1 1 1h5.2c.6 0 1-.4 1-1v-4.4h3.6v4.4c0 .6.4 1 1 1H20c.5 0 1-.4 1-1v-8.4c0-.5-.2-.9-.6-1.2L12 3.2Z"/></svg></span>
+        <span class="navitem__label">Заглавная</span>
+      </button>
+      <span class="sidenav__hr" data-admin></span>
+      <button class="navitem" data-page="users" data-admin>
+        <span class="navitem__icon"><svg viewBox="0 0 24 24"><path d="M9 4a4 4 0 1 1 0 8 4 4 0 0 1 0-8Zm0 10c4 0 7 2 7 4.5V20H2v-1.5C2 16 5 14 9 14Zm7.5-9.6a3.6 3.6 0 0 1 0 7.2c-.5 0-.9-.1-1.3-.2A5.9 5.9 0 0 0 16 8a5.9 5.9 0 0 0-.8-3.4c.4-.1.8-.2 1.3-.2ZM18 14.2c2.4.5 4 2 4 3.8V20h-4v-1.5c0-1.7-.8-3.1-2-4.2l2-.1Z"/></svg></span>
+        <span class="navitem__label">Пользователи</span>
+      </button>
+    </nav>
+    <div class="profile">
+      <div class="profile__avatar" id="me-avatar">?</div>
+      <div class="profile__meta">
+        <span class="profile__nick" id="me-name"></span>
+        <span class="profile__sub" id="me-role"></span>
+      </div>
+      <button class="linkbtn profile__out" id="logout" title="Выйти">Выйти</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="demo-note" id="demo-note" hidden>Демо-режим: Supabase ещё не подключён, правки живут только в этом браузере.</div>
+
+    <!-- статьи: список -->
+    <section class="page" data-page="articles">
+      <div class="page__titlerow">
+        <h1 class="page__title">Статьи <span class="count" id="art-count"></span></h1>
+        <button class="btn btn--primary btn--sm" id="art-new"><span class="btn__content">+ Новая статья</span></button>
+      </div>
+      <div class="toolbar">
+        <input class="input" id="art-search" placeholder="Поиск по названию">
+        <select class="input" id="art-filter"><option value="">Все разделы</option></select>
+      </div>
+      <div id="art-list"></div>
+    </section>
+
+    <!-- статьи: редактор -->
+    <section class="page" data-page="edit">
+      <div class="page__titlerow">
+        <button class="linkbtn" data-goto="articles"><svg viewBox="0 0 24 24"><path d="M15 6.5 9.5 12l5.5 5.5-1.2 1.2L7.1 12l6.7-6.7 1.2 1.2Z"/></svg>Все статьи</button>
+        <div class="page__actions">
+          <button class="btn btn--surface btn--sm" id="ed-delete" data-admin><span class="btn__content">Удалить</span></button>
+          <button class="btn btn--primary btn--sm" id="ed-save"><span class="btn__content">Сохранить</span></button>
+        </div>
+      </div>
+      <div class="panel">
+        <label class="gfield"><span class="gfield__label">Название</span><input class="input input--title" id="ed-title" placeholder="Например: Правила игры"></label>
+        <div class="row">
+          <label class="gfield grow"><span class="gfield__label">Раздел</span><select class="input" id="ed-section"></select></label>
+          <label class="gfield w120"><span class="gfield__label">Порядок</span><input class="input" id="ed-position" type="number" placeholder="авто"></label>
+          <label class="check"><input type="checkbox" id="ed-hidden"><span class="check__box"></span>Черновик (скрыта)</label>
+        </div>
+        <div class="gfield">
+          <div class="tabs">
+            <button class="tab is-active" data-tab="write">Текст</button>
+            <button class="tab" data-tab="preview">Просмотр</button>
+            <div class="mdbar" id="mdbar">
+              <button title="Жирный" data-md="**|**"><b>Ж</b></button>
+              <button title="Курсив" data-md="*|*"><i>К</i></button>
+              <button title="Заголовок" data-md="\n## |\n">H2</button>
+              <button title="Подзаголовок" data-md="\n### |\n">H3</button>
+              <button title="Список" data-md="\n- |">•</button>
+              <button title="Нумерованный список" data-md="\n1. |">1.</button>
+              <button title="Цитата" data-md="\n> |">❝</button>
+              <button title="Ссылка на статью базы" data-md="[[|]]">[[…]]</button>
+              <button title="Ссылка на сайт" data-md="[|](https://)">🔗</button>
+            </div>
+          </div>
+          <textarea class="input editor" id="ed-body" spellcheck="true" placeholder="Текст статьи. Ссылка на другую статью: [[Название]] или [[Название|текст]]."></textarea>
+          <div class="preview md" id="ed-preview" hidden></div>
+        </div>
+        <p class="hint" id="ed-meta"></p>
+      </div>
+    </section>
+
+    <!-- разделы -->
+    <section class="page" data-page="sections">
+      <div class="page__titlerow"><h1 class="page__title">Разделы заглавной</h1></div>
+      <p class="hint mb">Порядок здесь — порядок блоков на заглавной странице. Удалить можно только пустой раздел.</p>
+      <div class="list" id="sec-list"></div>
+      <form class="toolbar mt" id="sec-add">
+        <input class="input" name="name" placeholder="Новый раздел" required>
+        <button class="btn btn--primary btn--sm" type="submit"><span class="btn__content">Добавить</span></button>
+      </form>
+    </section>
+
+    <!-- заглавная -->
+    <section class="page" data-page="home">
+      <div class="page__titlerow">
+        <h1 class="page__title">Заглавная страница</h1>
+        <button class="btn btn--primary btn--sm" id="home-save"><span class="btn__content">Сохранить</span></button>
+      </div>
+      <div class="panel">
+        <label class="gfield"><span class="gfield__label">Заголовок</span><input class="input" id="home-title"></label>
+        <label class="gfield"><span class="gfield__label">Вступление</span><textarea class="input editor editor--short" id="home-body"></textarea></label>
+      </div>
+    </section>
+
+    <!-- пользователи -->
+    <section class="page" data-page="users">
+      <div class="page__titlerow"><h1 class="page__title">Пользователи</h1></div>
+      <div class="list" id="user-list"></div>
+
+      <div class="section__head mt"><span class="section__title">Новый аккаунт</span></div>
+      <form class="panel" id="user-add">
+        <div class="row">
+          <label class="gfield grow"><span class="gfield__label">Логин</span><input class="input" name="login" required pattern="[A-Za-z0-9_.\-]{3,32}" title="Латиница, цифры, _ . - (3–32 символа)"></label>
+          <label class="gfield grow"><span class="gfield__label">Имя в базе</span><input class="input" name="name" placeholder="как подписывать правки"></label>
+        </div>
+        <div class="row">
+          <label class="gfield grow"><span class="gfield__label">Пароль</span>
+            <span class="gfield__wrap"><input class="input" name="password" required minlength="8"><button type="button" class="gfield__eye is-text" id="gen-pass" title="Придумать пароль">⟳</button></span>
+          </label>
+          <label class="gfield w160"><span class="gfield__label">Роль</span>
+            <select class="input" name="role"><option value="editor">Редактор</option><option value="admin">Админ</option></select>
+          </label>
+        </div>
+        <div class="row row--end">
+          <span class="hint">Логин и пароль передайте человеку сами — сменить пароль он сможет после входа.</span>
+          <button class="btn btn--primary btn--sm" type="submit"><span class="btn__content">Создать аккаунт</span></button>
+        </div>
+      </form>
+    </section>
+
+    <!-- смена своего пароля -->
+    <section class="page" data-page="me">
+      <div class="page__titlerow"><h1 class="page__title">Мой аккаунт</h1></div>
+      <form class="panel narrow" id="me-pass">
+        <label class="gfield"><span class="gfield__label">Новый пароль</span><input class="input" name="password" type="password" minlength="8" autocomplete="new-password" required></label>
+        <button class="btn btn--primary btn--sm" type="submit"><span class="btn__content">Сменить пароль</span></button>
+      </form>
+    </section>
+  </main>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
