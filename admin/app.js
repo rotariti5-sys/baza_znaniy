@@ -35,6 +35,7 @@ function humanError(e) {
   if (/duplicate key.*name/i.test(m)) return 'Такой раздел уже есть.';
   if (/row-level security|permission denied/i.test(m)) return 'Недостаточно прав для этого действия.';
   if (/Password should be/i.test(m)) return 'Пароль слишком короткий.';
+  if (/admin_set_password/i.test(m)) return 'Смена паролей ещё не включена: выполните supabase/002_passwords.sql в Supabase.';
   if (/rate limit/i.test(m)) return 'Слишком много попыток подряд, подождите минуту.';
   if (/Failed to fetch|NetworkError/i.test(m)) return 'Нет связи с сервером базы. Проверьте интернет.';
   return m || 'Что-то пошло не так.';
@@ -93,7 +94,15 @@ function supabaseApi() {
       if (!res.user || (res.user.identities && res.user.identities.length === 0)) throw new Error('already registered');
       await tmp.auth.signOut().catch(() => {});
       ok(await sb.from('profiles').update({ role }).eq('id', res.user.id));
+      // запоминаем выданный пароль, чтобы админ мог его посмотреть (supabase/002_passwords.sql)
+      await sb.rpc('admin_set_password', { target: res.user.id, new_password: password });
     },
+    async issuedPasswords() {
+      const { data, error } = await sb.from('issued_passwords').select('*');
+      if (error) { if (/issued_passwords/.test(error.message)) return null; throw error; }
+      return data;
+    },
+    async setPassword(id, password) { ok(await sb.rpc('admin_set_password', { target: id, new_password: password })); },
   };
 }
 
@@ -149,9 +158,15 @@ function demoApi() {
     async saveHome(h) { db.home = { ...h }; save(); },
     async users() { return clone(db.users); },
     async setRole(id, role) { db.users.find((u) => u.id === id).role = role; save(); },
-    async createUser({ login, name, role }) {
+    async createUser({ login, name, role, password }) {
       if (db.users.some((u) => u.login === login)) throw new Error('already registered');
-      db.users.push({ id: 'u' + ++db.seq, login, name: name || login, role, created_at: new Date().toISOString() }); save();
+      const id = 'u' + ++db.seq;
+      db.users.push({ id, login, name: name || login, role, created_at: new Date().toISOString() });
+      (db.issued ||= {})[id] = { user_id: id, password, set_at: new Date().toISOString() }; save();
+    },
+    async issuedPasswords() { return Object.values(db.issued || {}); },
+    async setPassword(id, password) {
+      (db.issued ||= {})[id] = { user_id: id, password, set_at: new Date().toISOString() }; save();
     },
   };
 }
@@ -475,26 +490,85 @@ $('#home-save').addEventListener('click', async () => {
 // Пользователи (админ)
 // ======================================================================
 async function renderUsers() {
-  try { state.users = await api.users(); } catch (e) { return toast(humanError(e), 'err'); }
+  let issued;
+  try { [state.users, issued] = await Promise.all([api.users(), api.issuedPasswords()]); }
+  catch (e) { return toast(humanError(e), 'err'); }
+  const pw = new Map((issued || []).map((p) => [p.user_id, p]));
+  const open = new Set($$('.urow.is-open').map((r) => r.dataset.id));
+
   $('#user-list').innerHTML = state.users.map((u) => {
     const self = u.id === state.me.id;
     const name = u.name || u.login || '?';
+    const p = pw.get(u.id);
+    const current = issued === null
+      ? '<span class="hint">Чтобы видеть пароли, выполните supabase/002_passwords.sql в Supabase.</span>'
+      : p ? `<span class="pw" data-pw="${esc(p.password)}">••••••••••</span>
+             <button class="linkbtn" data-show type="button">Показать</button>
+             <button class="linkbtn" data-copy type="button">Копировать</button>
+             <span class="hint">выдан ${fmtDate(p.set_at)}</span>`
+        : '<span class="hint">Не сохранён: задан до этой функции или сменён самим пользователем. Задайте новый ниже.</span>';
     return `
-    <div class="item" data-id="${u.id}">
-      <div class="avatar">${esc(name.trim()[0].toUpperCase())}</div>
-      <div class="item__main">
-        <span class="item__title">${esc(name)}${self ? ' <span class="hint">(вы)</span>' : ''}</span>
-        <span class="item__sub">логин: ${esc(u.login || '—')} · с ${fmtDate(u.created_at)}</span>
+    <div class="urow${open.has(u.id) ? ' is-open' : ''}" data-id="${u.id}">
+      <div class="item">
+        <div class="avatar">${esc(name.trim()[0].toUpperCase())}</div>
+        <div class="item__main">
+          <span class="item__title">${esc(name)}${self ? ' <span class="hint">(вы)</span>' : ''}</span>
+          <span class="item__sub">логин: ${esc(u.login || '—')} · с ${fmtDate(u.created_at)}</span>
+        </div>
+        <div class="item__side">
+          ${self ? `<span class="chip chip--${u.role}">${ROLE_NAMES[u.role]}</span>
+            <button class="btn btn--surface btn--sm" data-goto="me" type="button"><span class="btn__content">Мой пароль</span></button>` : `
+          <button class="btn btn--surface btn--sm" data-pwtoggle type="button"><span class="btn__content">Пароль</span></button>
+          <select class="input" data-role style="width:160px">
+            ${Object.entries(ROLE_NAMES).map(([k, v]) => `<option value="${k}" ${k === u.role ? 'selected' : ''}>${v}</option>`).join('')}
+          </select>`}
+        </div>
       </div>
-      <div class="item__side">
-        ${self ? `<span class="chip chip--${u.role}">${ROLE_NAMES[u.role]}</span>` : `
-        <select class="input" data-role style="width:160px">
-          ${Object.entries(ROLE_NAMES).map(([k, v]) => `<option value="${k}" ${k === u.role ? 'selected' : ''}>${v}</option>`).join('')}
-        </select>`}
-      </div>
+      ${self ? '' : `
+      <div class="pwbox">
+        <div class="pwbox__cur"><span class="gfield__label">Текущий пароль</span>${current}</div>
+        <form class="pwbox__set" data-setpw>
+          <span class="gfield__wrap grow">
+            <input class="input" name="password" minlength="8" required placeholder="Новый пароль (от 8 символов)" autocomplete="off">
+            <button type="button" class="gfield__eye is-text" data-gen title="Придумать пароль">⟳</button>
+          </span>
+          <button class="btn btn--primary btn--sm" type="submit"><span class="btn__content">Сменить пароль</span></button>
+        </form>
+      </div>`}
     </div>`;
   }).join('');
 }
+
+$('#user-list').addEventListener('click', async (e) => {
+  const row = e.target.closest('.urow'); if (!row) return;
+  if (e.target.closest('[data-pwtoggle]')) row.classList.toggle('is-open');
+  const pwEl = row.querySelector('[data-pw]');
+  if (e.target.closest('[data-show]')) {
+    const shown = pwEl.textContent === pwEl.dataset.pw;
+    pwEl.textContent = shown ? '••••••••••' : pwEl.dataset.pw;
+    e.target.closest('[data-show]').textContent = shown ? 'Показать' : 'Скрыть';
+  }
+  if (e.target.closest('[data-copy]')) {
+    try { await navigator.clipboard.writeText(pwEl.dataset.pw); toast('Пароль скопирован.'); }
+    catch { toast('Не удалось скопировать — нажмите «Показать» и выделите вручную.', 'err'); }
+  }
+  if (e.target.closest('[data-gen]')) row.querySelector('[data-setpw]').password.value = genPassword();
+});
+
+$('#user-list').addEventListener('submit', async (e) => {
+  if (!e.target.matches('[data-setpw]')) return;
+  e.preventDefault();
+  const row = e.target.closest('.urow'), id = row.dataset.id;
+  const u = state.users.find((x) => x.id === id);
+  const password = e.target.password.value;
+  const btn = e.target.querySelector('button[type=submit]'); btn.disabled = true;
+  try {
+    await api.setPassword(id, password);
+    toast(`Пароль для «${u.login}» изменён. Старые входы этого аккаунта сброшены.`);
+    await renderUsers();
+  } catch (err) { toast(humanError(err), 'err'); }
+  btn.disabled = false;
+});
 
 $('#user-list').addEventListener('change', async (e) => {
   if (!e.target.matches('[data-role]')) return;

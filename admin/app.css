@@ -198,6 +198,17 @@ select.input option { background: var(--surface); }
 .iconbtn { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 8px; color: var(--w-500); font-size: 14px; }
 .iconbtn:hover:not(:disabled) { color: #fff; background: var(--w-050); }
 .iconbtn:disabled { opacity: .3; cursor: default; }
+/* строка пользователя + раскрывающийся блок пароля */
+.urow { border-bottom: 1px solid var(--line); }
+.urow:last-child { border-bottom: 0; }
+.urow > .item { border-bottom: 0; }
+.pwbox { display: none; flex-direction: column; gap: 12px; padding: 4px 16px 16px 62px; }
+.urow.is-open .pwbox { display: flex; }
+.pwbox__cur { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.pwbox__set { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; max-width: 560px; }
+.pw { font-family: 'Cascadia Code', Consolas, ui-monospace, monospace; font-size: 13.5px; padding: 4px 10px; border-radius: 8px; background: var(--surface); user-select: all; }
+@media (max-width: 760px) { .pwbox { padding-left: 16px; } .urow .item { flex-wrap: wrap; } .urow .item__main { flex: 1 1 60%; } .urow .item__side { width: 100%; padding-left: 46px; } }
+
 .empty { padding: 26px 16px; text-align: center; font-size: 12.5px; color: var(--w-400); }
 
 .chip { display: inline-flex; align-items: center; height: 22px; padding: 0 9px; border-radius: 999px; font-size: 11px; font-weight: 700; background: var(--w-050); color: var(--w-500); }

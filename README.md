@@ -13,9 +13,10 @@
 
 ## Настройка Supabase (один раз)
 
-1. **SQL Editor** → вставить `supabase/schema.sql` целиком → **Run**.
-2. **Authentication → Sign In / Providers → Email** → выключить **Confirm email** → Save
-   (логины без почты, подтверждать нечего).
+1. **SQL Editor** → вставить `supabase/schema.sql` целиком → **Run**, затем так же `supabase/002_passwords.sql`
+   (админ видит выданные пароли и меняет их).
+2. **Authentication → Sign In / Providers** → блок **User Signups** → выключить **Confirm email** → Save
+   (логины без почты, подтверждать нечего; Email provider должен оставаться включённым).
 3. Открыть админку → «Первый запуск» → создать аккаунт главного админа.
    Первый созданный аккаунт автоматически становится админом.
 
@@ -24,5 +25,7 @@
 - `admin/` — страница админки (оформление как в лаунчере MusicDream).
 - `admin/config.js` — адрес проекта и публичный ключ (publishable). Ключ `service_role` сюда не класть.
 - `supabase/schema.sql` — таблицы `sections`, `articles`, `home`, `profiles` и права (RLS).
+- `supabase/002_passwords.sql` — `issued_passwords` + `admin_set_password()`: пароль, выданный админом,
+  виден админу; если человек сменил пароль сам — запись стирается (настоящие пароли Supabase хранит только хэшем).
 
 В тексте статьи ссылка на другую статью: `[[Название]]` или `[[Название|текст]]`.
