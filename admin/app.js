@@ -27,6 +27,7 @@ function toast(text, kind = 'ok') {
 function humanError(e) {
   const m = String(e?.message || e || '');
   if (/Invalid login credentials/i.test(m)) return 'Неверный логин или пароль.';
+  if (/signups are disabled|provider is disabled/i.test(m)) return 'В Supabase выключен вход по Email: Authentication → Sign In / Providers → Email → включить Enable Email provider (выключить только «Confirm email»).';
   if (/Email not confirmed/i.test(m)) return 'Аккаунт не подтверждён: в Supabase выключите Authentication → Sign In / Providers → Email → «Confirm email».';
   if (/already registered|already been registered/i.test(m)) return 'Такой логин уже занят.';
   if (/email.*invalid|invalid.*email/i.test(m)) return 'Supabase не принял логин как адрес. Попробуйте другой логин или почту.';
