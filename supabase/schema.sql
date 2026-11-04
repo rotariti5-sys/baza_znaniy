@@ -1,8 +1,8 @@
 -- База знаний MusicDream: таблицы, роли и права.
 -- Запуск: Supabase → SQL Editor → вставить весь файл → Run. Повторный запуск безопасен.
 --
--- Роли: admin — всё, включая разделы, заглавную и пользователей;
---       editor — пишет и правит статьи;
+-- Роли: admin — всё, включая пользователей и их пароли;
+--       editor — всё, кроме аккаунтов: статьи, разделы, заглавная;
 --       none — аккаунт создан, но доступа нет (ждёт роли от админа);
 --       blocked — отключён.
 -- Самый первый зарегистрированный аккаунт автоматически становится admin.
@@ -96,20 +96,22 @@ create policy profiles_read  on public.profiles for select to authenticated
 create policy profiles_admin on public.profiles for update to authenticated
   using (public.my_role() = 'admin') with check (public.my_role() = 'admin');
 
--- Разделы и заглавная читаются всеми (из них потом соберётся сама вики), правит админ.
+-- Разделы и заглавная читаются всеми (из них потом соберётся сама вики), правит команда.
 drop policy if exists sections_read  on public.sections;
 drop policy if exists sections_admin on public.sections;
+drop policy if exists sections_team  on public.sections;
 create policy sections_read  on public.sections for select using (true);
-create policy sections_admin on public.sections for all to authenticated
-  using (public.my_role() = 'admin') with check (public.my_role() = 'admin');
+create policy sections_team  on public.sections for all to authenticated
+  using (public.my_role() in ('admin', 'editor')) with check (public.my_role() in ('admin', 'editor'));
 
 drop policy if exists home_read  on public.home;
 drop policy if exists home_admin on public.home;
+drop policy if exists home_team  on public.home;
 create policy home_read  on public.home for select using (true);
-create policy home_admin on public.home for all to authenticated
-  using (public.my_role() = 'admin') with check (public.my_role() = 'admin');
+create policy home_team  on public.home for all to authenticated
+  using (public.my_role() in ('admin', 'editor')) with check (public.my_role() in ('admin', 'editor'));
 
--- Статьи: открытые видят все, скрытые — только команда. Пишут editor и admin, удаляет admin.
+-- Статьи: открытые видят все, скрытые — только команда. Пишет и удаляет команда (editor и admin).
 drop policy if exists articles_read   on public.articles;
 drop policy if exists articles_insert on public.articles;
 drop policy if exists articles_update on public.articles;
@@ -121,7 +123,7 @@ create policy articles_insert on public.articles for insert to authenticated
 create policy articles_update on public.articles for update to authenticated
   using (public.my_role() in ('admin', 'editor')) with check (public.my_role() in ('admin', 'editor'));
 create policy articles_delete on public.articles for delete to authenticated
-  using (public.my_role() = 'admin');
+  using (public.my_role() in ('admin', 'editor'));
 
 -- ---------- стартовые данные ----------
 insert into public.home (id, title, body) values (1,

@@ -180,7 +180,7 @@ const state = { me: null, sections: [], articles: [], users: [], editing: null, 
 const isAdmin = () => state.me?.role === 'admin';
 
 function go(page, push = true) {
-  if (!isAdmin() && ['sections', 'home', 'users'].includes(page)) page = 'articles';
+  if (!isAdmin() && page === 'users') page = 'articles';
   if (state.dirty && page !== 'edit' && !confirm('Есть несохранённые правки. Уйти без сохранения?')) return;
   if (page !== 'edit') state.dirty = false;
   $$('.page').forEach((p) => p.classList.toggle('is-active', p.dataset.page === page));
@@ -335,7 +335,7 @@ async function openEditor(id) {
   $('#ed-position').value = a.position ?? '';
   $('#ed-hidden').checked = a.hidden;
   $('#ed-body').value = a.body;
-  $('#ed-delete').hidden = !id || !isAdmin();
+  $('#ed-delete').hidden = !id;
   $('#ed-meta').textContent = id ? `Последняя правка: ${fmtDate(a.updated_at)}${userName(a.updated_by) ? ', ' + userName(a.updated_by) : ''}` : 'Новая статья';
   setTab('write');
   go('edit');
@@ -366,7 +366,7 @@ async function saveArticle() {
     state.editing = { ...a, ...saved };
     state.dirty = false;
     state.articles = await api.articles();
-    $('#ed-delete').hidden = !isAdmin();
+    $('#ed-delete').hidden = false;
     $('#ed-meta').textContent = `Сохранено ${fmtDate(saved.updated_at || new Date().toISOString())}`;
     toast('Статья сохранена.');
   } catch (e) { toast(humanError(e), 'err'); }
@@ -421,7 +421,7 @@ $('#mdbar').addEventListener('click', (e) => {
 });
 
 // ======================================================================
-// Разделы (админ)
+// Разделы
 // ======================================================================
 function renderSections() {
   const cnt = (id) => state.articles.filter((a) => a.section_id === id).length;
@@ -475,7 +475,7 @@ $('#sec-add').addEventListener('submit', async (e) => {
 });
 
 // ======================================================================
-// Заглавная (админ)
+// Заглавная
 // ======================================================================
 async function loadHome() {
   try { const h = await api.home(); $('#home-title').value = h.title; $('#home-body').value = h.body; }
