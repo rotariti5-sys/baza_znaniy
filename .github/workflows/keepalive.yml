@@ -1,0 +1,46 @@
+# Не даёт бесплатному Supabase уснуть: проект ставится на паузу после 7 дней без запросов.
+# Раз в 2 дня читает список разделов (публичный ключ — тот же, что в admin/config.js).
+# GitHub сам выключает расписание в репозитории, где 60 дней не было коммитов, поэтому
+# раз в ~50 дней тишины workflow делает пустой коммит.
+name: Пинг базы Supabase
+
+on:
+  schedule:
+    - cron: "17 6 */2 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Запрос к базе
+        run: |
+          URL=$(curl -s https://raw.githubusercontent.com/${{ github.repository }}/main/admin/config.js | sed -n "s/.*supabaseUrl: '\([^']*\)'.*/\1/p")
+          KEY=$(curl -s https://raw.githubusercontent.com/${{ github.repository }}/main/admin/config.js | sed -n "s/.*supabaseAnonKey: '\([^']*\)'.*/\1/p")
+          for i in 1 2 3; do
+            CODE=$(curl -s -o /dev/null -w "%{http_code}" -m 30 "$URL/rest/v1/sections?select=id&limit=1" -H "apikey: $KEY")
+            echo "Ответ базы: $CODE"
+            [ "$CODE" = "200" ] && exit 0
+            sleep 20
+          done
+          echo "::error::База не отвечает (код $CODE). Если проект на паузе — Supabase → проект → Resume project."
+          exit 1
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Не дать GitHub выключить расписание
+        run: |
+          LAST=$(git log -1 --format=%ct)
+          AGE_DAYS=$(( ($(date +%s) - LAST) / 86400 ))
+          echo "Дней с последнего коммита: $AGE_DAYS"
+          if [ "$AGE_DAYS" -ge 50 ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit --allow-empty -m "Пинг: репозиторий жив"
+            git push
+          fi
